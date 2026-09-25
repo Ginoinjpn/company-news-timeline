@@ -25,11 +25,12 @@
  "months": [
   {
    "month": "2026-09",
-   "total": 570,
+   "total": 581,
    "counts": {
     "NBIS": 284,
     "JMIA": 7,
-    "IONQ": 279
+    "IONQ": 279,
+    "6965": 11
    }
   },
   {
