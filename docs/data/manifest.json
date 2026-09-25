@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-25T15:39:14Z",
+ "updated": "2026-09-25T15:43:49Z",
  "companies": [
   {
    "ticker": "IONQ",
@@ -25,242 +25,242 @@
  "months": [
   {
    "month": "2026-09",
-   "total": 581,
+   "total": 431,
    "counts": {
-    "NBIS": 284,
-    "JMIA": 7,
-    "IONQ": 279,
-    "6965": 11
+    "NBIS": 213,
+    "JMIA": 5,
+    "IONQ": 207,
+    "6965": 6
    }
   },
   {
    "month": "2026-08",
-   "total": 344,
+   "total": 267,
    "counts": {
-    "NBIS": 214,
-    "IONQ": 107,
-    "JMIA": 14,
-    "6965": 9
+    "NBIS": 164,
+    "IONQ": 90,
+    "JMIA": 7,
+    "6965": 6
    }
   },
   {
    "month": "2026-07",
-   "total": 517,
+   "total": 376,
    "counts": {
-    "IONQ": 164,
-    "NBIS": 328,
-    "6965": 10,
-    "JMIA": 15
-   }
-  },
-  {
-   "month": "2026-06",
-   "total": 386,
-   "counts": {
-    "NBIS": 211,
-    "IONQ": 152,
-    "6965": 16,
-    "JMIA": 7
-   }
-  },
-  {
-   "month": "2026-05",
-   "total": 486,
-   "counts": {
-    "NBIS": 256,
-    "IONQ": 189,
-    "JMIA": 26,
-    "6965": 15
-   }
-  },
-  {
-   "month": "2026-04",
-   "total": 324,
-   "counts": {
-    "IONQ": 152,
-    "NBIS": 153,
-    "JMIA": 11,
-    "6965": 8
-   }
-  },
-  {
-   "month": "2026-03",
-   "total": 274,
-   "counts": {
-    "NBIS": 187,
-    "IONQ": 69,
-    "6965": 10,
+    "IONQ": 131,
+    "NBIS": 231,
+    "6965": 6,
     "JMIA": 8
    }
   },
   {
-   "month": "2026-02",
-   "total": 222,
+   "month": "2026-06",
+   "total": 307,
    "counts": {
-    "JMIA": 33,
-    "NBIS": 98,
-    "IONQ": 83,
-    "6965": 8
+    "NBIS": 159,
+    "IONQ": 132,
+    "6965": 11,
+    "JMIA": 5
    }
   },
   {
-   "month": "2026-01",
-   "total": 199,
+   "month": "2026-05",
+   "total": 377,
    "counts": {
-    "JMIA": 4,
-    "NBIS": 73,
-    "IONQ": 116,
-    "6965": 6
-   }
-  },
-  {
-   "month": "2025-12",
-   "total": 169,
-   "counts": {
-    "NBIS": 67,
-    "IONQ": 85,
-    "JMIA": 8,
+    "NBIS": 187,
+    "IONQ": 158,
+    "JMIA": 23,
     "6965": 9
    }
   },
   {
-   "month": "2025-11",
-   "total": 145,
+   "month": "2026-04",
+   "total": 271,
    "counts": {
-    "JMIA": 21,
-    "IONQ": 56,
-    "NBIS": 64,
-    "6965": 4
-   }
-  },
-  {
-   "month": "2025-10",
-   "total": 154,
-   "counts": {
-    "IONQ": 92,
-    "JMIA": 9,
-    "NBIS": 47,
+    "IONQ": 132,
+    "NBIS": 122,
+    "JMIA": 11,
     "6965": 6
    }
   },
   {
-   "month": "2025-09",
-   "total": 133,
+   "month": "2026-03",
+   "total": 217,
    "counts": {
-    "NBIS": 62,
-    "IONQ": 57,
-    "JMIA": 10,
+    "NBIS": 146,
+    "IONQ": 59,
+    "6965": 5,
+    "JMIA": 7
+   }
+  },
+  {
+   "month": "2026-02",
+   "total": 181,
+   "counts": {
+    "JMIA": 27,
+    "NBIS": 78,
+    "IONQ": 71,
+    "6965": 5
+   }
+  },
+  {
+   "month": "2026-01",
+   "total": 174,
+   "counts": {
+    "JMIA": 4,
+    "NBIS": 57,
+    "IONQ": 109,
     "6965": 4
    }
   },
   {
-   "month": "2025-08",
-   "total": 88,
+   "month": "2025-12",
+   "total": 139,
    "counts": {
-    "NBIS": 19,
-    "IONQ": 41,
-    "6965": 18,
-    "JMIA": 10
+    "NBIS": 54,
+    "IONQ": 73,
+    "JMIA": 7,
+    "6965": 5
+   }
+  },
+  {
+   "month": "2025-11",
+   "total": 125,
+   "counts": {
+    "JMIA": 20,
+    "IONQ": 48,
+    "NBIS": 55,
+    "6965": 2
+   }
+  },
+  {
+   "month": "2025-10",
+   "total": 124,
+   "counts": {
+    "IONQ": 78,
+    "JMIA": 4,
+    "NBIS": 39,
+    "6965": 3
+   }
+  },
+  {
+   "month": "2025-09",
+   "total": 111,
+   "counts": {
+    "IONQ": 51,
+    "NBIS": 48,
+    "JMIA": 9,
+    "6965": 3
+   }
+  },
+  {
+   "month": "2025-08",
+   "total": 74,
+   "counts": {
+    "NBIS": 16,
+    "IONQ": 37,
+    "6965": 12,
+    "JMIA": 9
    }
   },
   {
    "month": "2025-07",
-   "total": 54,
+   "total": 51,
    "counts": {
     "6965": 3,
-    "IONQ": 26,
-    "NBIS": 17,
+    "IONQ": 25,
+    "NBIS": 15,
     "JMIA": 8
    }
   },
   {
    "month": "2025-06",
-   "total": 64,
+   "total": 59,
    "counts": {
     "JMIA": 11,
-    "IONQ": 26,
-    "NBIS": 20,
-    "6965": 7
-   }
-  },
-  {
-   "month": "2025-05",
-   "total": 79,
-   "counts": {
-    "IONQ": 31,
-    "NBIS": 23,
-    "JMIA": 18,
-    "6965": 7
-   }
-  },
-  {
-   "month": "2025-04",
-   "total": 49,
-   "counts": {
-    "NBIS": 21,
-    "IONQ": 17,
-    "6965": 5,
-    "JMIA": 6
-   }
-  },
-  {
-   "month": "2025-03",
-   "total": 42,
-   "counts": {
-    "IONQ": 13,
-    "JMIA": 10,
-    "NBIS": 10,
-    "6965": 9
-   }
-  },
-  {
-   "month": "2025-02",
-   "total": 41,
-   "counts": {
-    "IONQ": 15,
-    "NBIS": 13,
-    "JMIA": 8,
+    "IONQ": 25,
+    "NBIS": 18,
     "6965": 5
    }
   },
   {
-   "month": "2025-01",
-   "total": 45,
+   "month": "2025-05",
+   "total": 62,
    "counts": {
-    "NBIS": 12,
+    "IONQ": 19,
+    "NBIS": 22,
+    "JMIA": 16,
+    "6965": 5
+   }
+  },
+  {
+   "month": "2025-04",
+   "total": 42,
+   "counts": {
+    "NBIS": 18,
+    "IONQ": 14,
+    "6965": 5,
+    "JMIA": 5
+   }
+  },
+  {
+   "month": "2025-03",
+   "total": 35,
+   "counts": {
+    "IONQ": 12,
+    "JMIA": 10,
+    "NBIS": 9,
+    "6965": 4
+   }
+  },
+  {
+   "month": "2025-02",
+   "total": 32,
+   "counts": {
+    "IONQ": 12,
+    "NBIS": 10,
+    "JMIA": 7,
+    "6965": 3
+   }
+  },
+  {
+   "month": "2025-01",
+   "total": 36,
+   "counts": {
+    "NBIS": 10,
     "JMIA": 2,
-    "IONQ": 28,
+    "IONQ": 21,
     "6965": 3
    }
   },
   {
    "month": "2024-12",
-   "total": 45,
+   "total": 39,
    "counts": {
     "JMIA": 12,
-    "IONQ": 16,
-    "NBIS": 10,
+    "IONQ": 11,
+    "NBIS": 9,
     "6965": 7
    }
   },
   {
    "month": "2024-11",
-   "total": 53,
+   "total": 44,
    "counts": {
-    "JMIA": 17,
+    "JMIA": 14,
     "6965": 7,
-    "IONQ": 16,
-    "NBIS": 13
+    "IONQ": 14,
+    "NBIS": 9
    }
   },
   {
    "month": "2024-10",
-   "total": 46,
+   "total": 40,
    "counts": {
-    "NBIS": 23,
-    "JMIA": 10,
+    "NBIS": 20,
+    "JMIA": 8,
     "6965": 8,
-    "IONQ": 5
+    "IONQ": 4
    }
   },
   {
