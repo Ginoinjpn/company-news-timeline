@@ -49,17 +49,18 @@
   },
   {
    "month": "2026-06",
-   "total": 160,
+   "total": 159,
    "counts": {
     "IONQ": 152,
-    "JMIA": 8
+    "JMIA": 7
    }
   },
   {
    "month": "2026-05",
-   "total": 189,
+   "total": 215,
    "counts": {
-    "IONQ": 189
+    "IONQ": 189,
+    "JMIA": 26
    }
   },
   {
