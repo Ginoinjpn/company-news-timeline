@@ -43,17 +43,18 @@
   },
   {
    "month": "2026-07",
-   "total": 508,
+   "total": 507,
    "counts": {
     "IONQ": 164,
-    "NBIS": 329,
+    "NBIS": 328,
     "JMIA": 15
    }
   },
   {
    "month": "2026-06",
-   "total": 159,
+   "total": 372,
    "counts": {
+    "NBIS": 213,
     "IONQ": 152,
     "JMIA": 7
    }
