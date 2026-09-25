@@ -214,10 +214,11 @@
   },
   {
    "month": "2024-12",
-   "total": 28,
+   "total": 38,
    "counts": {
     "JMIA": 12,
-    "IONQ": 16
+    "IONQ": 16,
+    "NBIS": 10
    }
   },
   {
