@@ -175,7 +175,12 @@ function card(article, date) {
     summary.id = `summary-${article.id}`;
     button.setAttribute("aria-controls", summary.id);
     setOpen(li, button, state.expandAll);
-    button.addEventListener("click", () => setOpen(li, button, !li.classList.contains("open")));
+    button.addEventListener("click", () => {
+      const open = !li.classList.contains("open");
+      setOpen(li, button, open);
+      // 要約を自分で開いて読んだ記事も既読にする（「要約をすべて開く」では付けない）
+      if (open) markRead(article.url, li);
+    });
     li.append(button, summary);
   }
   if (article.title_ja && article.title_ja !== article.title) li.append(el("p", "orig", article.title));
