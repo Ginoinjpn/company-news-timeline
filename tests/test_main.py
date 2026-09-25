@@ -43,7 +43,7 @@ def test_dedupe_fills_missing_published():
 def test_split_new_merges_known_and_skips_rejected():
     store = Store()
     store.add({**cand("a", "https://g/1"), "title_ja": "x", "summary": "", "category": "その他"})
-    store.reject("https://spam/1")
+    store.reject("https://spam/1", "IONQ")
     new, changed = main.split_new(store, [cand("a", "https://g/9", ticker="NVDA"), cand("s", "https://spam/1"), cand("n", "https://g/3")])
     assert [c["id"] for c in new] == ["n"]
     assert changed is True
@@ -61,7 +61,7 @@ def test_process_saves_accepted_rejects_irrelevant_and_retries_missing_next_time
     main.process(store, [cand("a", "https://g/1"), cand("b", "https://g/2"), cand("c", "https://g/3")],
                  partial, lambda: saves.append(1), BY_TICKER, log=lambda m: None, pause=lambda s: None)
     assert set(store.articles) == {"a"}
-    assert store.is_rejected({"url": "https://g/2"})
+    assert store.is_rejected({"url": "https://g/2", "companies": ["IONQ"]})
     assert store.find(cand("c", "https://g/3")) is None
     assert saves
 
@@ -103,3 +103,59 @@ def test_run_recent_writes_manifest_even_without_news(tmp_path):
     main.run_recent([IONQ], all_relevant, NOW, tmp_path, fetch_recent=lambda company, now: [], log=lambda m: None)
     manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["months"] == [] and manifest["updated"] == "2026-09-25T12:00:00Z"
+
+
+def test_one_unparseable_item_does_not_block_the_rest(monkeypatch):
+    monkeypatch.setattr(main.summarize, "BATCH_SIZE", 4)
+
+    def poisoned(company, batch):
+        if any(c["id"] == "p" for c in batch):
+            raise main.summarize.BadResponse("blocked")
+        return all_relevant(company, batch)
+
+    store = Store()
+    items = [cand("a", "https://g/1"), cand("p", "https://g/2"), cand("b", "https://g/3"), cand("c", "https://g/4")]
+    main.process(store, items, poisoned, lambda: None, BY_TICKER, log=lambda m: None, pause=lambda s: None)
+    assert set(store.articles) == {"a", "b", "c"}
+    assert store.is_rejected({"url": "https://g/2", "companies": ["IONQ"]})
+
+
+def test_irrelevant_for_first_company_is_judged_for_the_next():
+    seen = []
+
+    def judge(company, batch):
+        seen.append(company["ticker"])
+        return [Judgement(index=i, relevant=company["ticker"] == "NVDA", title_ja="t", summary="s", category="その他")
+                for i, _ in enumerate(batch)]
+
+    store = Store()
+    both = main.dedupe([cand("x", "https://g/1"), cand("x", "https://g/1", ticker="NVDA")])
+    main.process(store, both, judge, lambda: None, BY_TICKER, log=lambda m: None, pause=lambda s: None)
+    assert seen == ["IONQ", "NVDA"]
+    assert store.articles["x"]["companies"] == ["NVDA"]
+    new, _ = main.split_new(store, [cand("x", "https://g/1")])
+    assert new == [] and store.articles["x"]["companies"] == ["NVDA"]
+
+
+def test_transient_failure_stops_the_run_but_keeps_saved_batches(tmp_path, monkeypatch):
+    monkeypatch.setattr(main.summarize, "BATCH_SIZE", 1)
+    store = Store()
+    data_dir = tmp_path / "data"
+    calls = iter([all_relevant, None])
+
+    def flaky(company, batch):
+        fn = next(calls)
+        if fn is None:
+            raise RuntimeError("503 after retries")
+        return fn(company, batch)
+
+    with pytest.raises(RuntimeError):
+        main.process(store, [cand("a", "https://g/1"), cand("b", "https://g/2")], flaky,
+                     lambda: store.save(data_dir, [IONQ], NOW), BY_TICKER, log=lambda m: None, pause=lambda s: None)
+    assert set(Store.load(data_dir).articles) == {"a"}
+
+
+def test_dedupe_keeps_recurring_headlines_from_different_weeks_apart():
+    out = main.dedupe([cand("same", "https://fool/1", published="2026-06-01T00:00:00Z"),
+                       cand("same", "https://fool/2", published="2026-09-20T00:00:00Z")])
+    assert len(out) == 2 and out[0]["id"] != out[1]["id"]

@@ -34,7 +34,7 @@ def test_apply_judgements_accepts_rejects_and_leaves_missing():
     assert [a["id"] for a in accepted] == ["id0"]
     assert accepted[0]["title_ja"] == "見出し0" and accepted[0]["category"] == "提携・契約"
     assert "snippet" not in accepted[0]
-    assert rejected == ["https://x/1"]
+    assert [c["url"] for c in rejected] == ["https://x/1"]
     assert [c["id"] for c in leftover] == ["id2"]
 
 
@@ -82,6 +82,19 @@ def test_judge_retries_rate_limit_then_succeeds():
     assert client.models.calls == 2
 
 
-def test_judge_raises_on_broken_json():
-    with pytest.raises(json.JSONDecodeError):
+def test_judge_raises_bad_response_on_broken_json():
+    with pytest.raises(summarize.BadResponse):
         summarize.judge(FakeClient(["not json"]), COMPANY, [cand(0)], sleep=lambda s: None)
+
+
+def test_judge_raises_bad_response_on_blocked_or_invalid_output():
+    with pytest.raises(summarize.BadResponse):
+        summarize.judge(FakeClient([None]), COMPANY, [cand(0)], sleep=lambda s: None)
+    with pytest.raises(summarize.BadResponse):
+        summarize.judge(FakeClient(['[{"index": "x"}]']), COMPANY, [cand(0)], sleep=lambda s: None)
+
+
+def test_judge_does_not_hide_non_retryable_api_errors():
+    bad_key = errors.APIError(400, {"error": {"message": "API key not valid"}})
+    with pytest.raises(errors.APIError):
+        summarize.judge(FakeClient([bad_key]), COMPANY, [cand(0)], sleep=lambda s: None)

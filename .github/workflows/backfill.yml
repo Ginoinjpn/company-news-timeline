@@ -21,6 +21,8 @@ permissions:
 
 jobs:
   backfill:
+    # データは main に push するので、他のブランチから実行してもコードを main に混ぜない
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 350
     steps:

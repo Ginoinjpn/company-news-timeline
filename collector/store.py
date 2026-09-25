@@ -1,8 +1,10 @@
 import json
+import os
 import re
+from datetime import timedelta
 from pathlib import Path
 
-from collector.text import iso_now
+from collector.text import article_id, iso_now, parse_iso
 
 ORIGIN_PRIORITY = {"official": 0, "sec": 1, "other": 2}
 PUBLIC_FIELDS = (
@@ -10,10 +12,34 @@ PUBLIC_FIELDS = (
     "url", "source", "origin", "lang", "published", "fetched",
 )
 _MONTH_FILE_RE = re.compile(r"^\d{4}-\d{2}\.json$")
+SAME_STORY_DAYS = 3
 
 
 def _timestamp(article: dict) -> str:
     return article.get("published") or article["fetched"]
+
+
+def same_story(a: dict, b: dict) -> bool:
+    # 同じ見出しでも公開日が大きく離れていれば別の記事（「Why IonQ Stock Is Soaring Today」など）
+    pa, pb = a.get("published"), b.get("published")
+    if not pa or not pb:
+        return True
+    return abs(parse_iso(pa) - parse_iso(pb)) <= timedelta(days=SAME_STORY_DAYS)
+
+
+def dated_id(article: dict) -> str:
+    return article_id(f"{article['title']} {(article.get('published') or article.get('fetched') or '')[:10]}")
+
+
+def _rejection_key(ticker: str, url: str) -> str:
+    return f"{ticker} {url}"
+
+
+def _write_atomic(path: Path, text: str) -> None:
+    # 途中で強制終了されても、書きかけのファイルが残らないようにする
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def build_manifest(by_month: dict, companies: list, now) -> dict:
@@ -53,15 +79,25 @@ class Store:
         return cls(articles, rejected)
 
     def find(self, candidate: dict) -> dict | None:
-        article_id = self._url_index.get(candidate["url"]) or candidate["id"]
-        return self.articles.get(article_id)
+        by_url = self._url_index.get(candidate["url"])
+        if by_url:
+            return self.articles[by_url]
+        existing = self.articles.get(candidate["id"])
+        if existing and not same_story(existing, candidate):
+            return None
+        return existing
+
+    def allowed_companies(self, candidate: dict) -> list[str]:
+        return [t for t in candidate["companies"] if _rejection_key(t, candidate["url"]) not in self._rejected]
 
     def is_rejected(self, candidate: dict) -> bool:
-        return candidate["url"] in self._rejected
+        return not self.allowed_companies(candidate)
 
     def merge(self, existing: dict, candidate: dict) -> bool:
         changed = False
         for ticker in candidate["companies"]:
+            if _rejection_key(ticker, existing["url"]) in self._rejected:
+                continue
             if ticker not in existing["companies"]:
                 existing["companies"].append(ticker)
                 changed = True
@@ -72,11 +108,14 @@ class Store:
         return changed
 
     def add(self, article: dict) -> None:
+        clash = self.articles.get(article["id"])
+        if clash and clash["url"] != article["url"] and not same_story(clash, article):
+            article = {**article, "id": dated_id(article)}
         self.articles[article["id"]] = article
         self._url_index[article["url"]] = article["id"]
 
-    def reject(self, url: str) -> None:
-        self._rejected.add(url)
+    def reject(self, url: str, ticker: str) -> None:
+        self._rejected.add(_rejection_key(ticker, url))
 
     def save(self, data_dir: Path, companies: list, now) -> None:
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -89,11 +128,7 @@ class Store:
             lines = ",\n".join(
                 json.dumps({k: a[k] for k in PUBLIC_FIELDS if k in a}, ensure_ascii=False) for a in items
             )
-            (data_dir / f"{month}.json").write_text(f"[\n{lines}\n]\n", encoding="utf-8")
-        (data_dir / "rejected.json").write_text(
-            json.dumps(sorted(self._rejected), ensure_ascii=False, indent=0) + "\n", encoding="utf-8"
-        )
-        (data_dir / "manifest.json").write_text(
-            json.dumps(build_manifest(by_month, companies, now), ensure_ascii=False, indent=1) + "\n",
-            encoding="utf-8",
-        )
+            _write_atomic(data_dir / f"{month}.json", f"[\n{lines}\n]\n")
+        _write_atomic(data_dir / "rejected.json", json.dumps(sorted(self._rejected), ensure_ascii=False, indent=0) + "\n")
+        _write_atomic(data_dir / "manifest.json",
+                      json.dumps(build_manifest(by_month, companies, now), ensure_ascii=False, indent=1) + "\n")

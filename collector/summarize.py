@@ -2,13 +2,17 @@ import json
 import time
 
 from google.genai import errors, types
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 MODEL = "gemini-3.5-flash-lite"
 BATCH_SIZE = 40
 CATEGORIES = ("決算・業績", "提携・契約", "製品・技術", "買収・資金調達", "経営・人事", "株価・市場", "その他")
 RETRY_CODES = (429, 500, 503)
 MAX_RETRIES = 3
+
+
+class BadResponse(Exception):
+    """Gemini の応答を解釈できない（安全フィルタで空、JSON 不正、形式違い）。"""
 
 
 class Judgement(BaseModel):
@@ -48,11 +52,15 @@ def judge(client, company: dict, items: list[dict], sleep=time.sleep) -> list[Ju
                     response_schema=list[Judgement],
                 ),
             )
-            return [Judgement.model_validate(x) for x in json.loads(response.text)]
         except errors.APIError as e:
             if e.code not in RETRY_CODES or attempt == MAX_RETRIES:
                 raise
             sleep(30 * (attempt + 1))
+            continue
+        try:
+            return [Judgement.model_validate(x) for x in json.loads(response.text)]
+        except (json.JSONDecodeError, TypeError, ValidationError) as e:
+            raise BadResponse(str(e)) from e
     raise AssertionError("unreachable")
 
 
@@ -66,7 +74,7 @@ def apply_judgements(items: list[dict], judgements: list[Judgement]):
             continue
         # 公式発表と SEC の書類はその会社自身のものなので、関連性の判定では除外しない
         if not j.relevant and c["origin"] not in ("official", "sec"):
-            rejected.append(c["url"])
+            rejected.append(c)
             continue
         category = j.category if j.category in CATEGORIES else "その他"
         if c.get("form") in ("10-Q", "10-K"):

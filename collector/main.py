@@ -8,7 +8,7 @@ from pathlib import Path
 
 from companies import COMPANIES
 from collector import sources, summarize
-from collector.store import ORIGIN_PRIORITY, Store
+from collector.store import ORIGIN_PRIORITY, Store, dated_id, same_story
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "docs" / "data"
 BACKFILL_DAYS = 730
@@ -22,6 +22,10 @@ def dedupe(candidates: list[dict]) -> list[dict]:
     for c in candidates:
         key = url_to_id.get(c["url"]) or c["id"]
         existing = by_id.get(key)
+        if existing is not None and not same_story(existing, c):
+            c = {**c, "id": dated_id(c)}
+            key = c["id"]
+            existing = by_id.get(key)
         if existing is None:
             copy = {**c, "companies": list(c["companies"])}
             by_id[key] = copy
@@ -42,8 +46,10 @@ def dedupe(candidates: list[dict]) -> list[dict]:
 def split_new(store: Store, candidates: list[dict]) -> tuple[list[dict], bool]:
     new, changed = [], False
     for c in dedupe(candidates):
-        if store.is_rejected(c):
+        allowed = store.allowed_companies(c)
+        if not allowed:
             continue
+        c["companies"] = allowed
         existing = store.find(c)
         if existing:
             changed = store.merge(existing, c) or changed
@@ -52,26 +58,46 @@ def split_new(store: Store, candidates: list[dict]) -> tuple[list[dict], bool]:
     return new, changed
 
 
+def judge_batch(judge_fn, company, batch, log=print):
+    """解釈できない応答が返ったら半分ずつに分けて判定し直し、原因の1件だけを除外する。"""
+    try:
+        return summarize.apply_judgements(batch, judge_fn(company, batch))
+    except summarize.BadResponse as e:
+        if len(batch) == 1:
+            log(f"{company['ticker']}: 判定できないため除外 {batch[0]['url']} ({e})")
+            return [], batch, []
+        middle = len(batch) // 2
+        a1, r1, l1 = judge_batch(judge_fn, company, batch[:middle], log)
+        a2, r2, l2 = judge_batch(judge_fn, company, batch[middle:], log)
+        return a1 + a2, r1 + r2, l1 + l2
+
+
 def process(store, candidates, judge_fn, save, company_by_ticker, log=print, pause=time.sleep) -> None:
     new, changed = split_new(store, candidates)
     if changed:
         save()
-    groups: dict[str, list] = {}
+    pending: dict[str, list] = {}
     for c in new:
-        groups.setdefault(c["companies"][0], []).append(c)
+        pending.setdefault(c["companies"][0], []).append(c)
     first = True
-    for ticker, items in groups.items():
+    while pending:
+        ticker = next(iter(pending))
+        items = pending.pop(ticker)
         company = company_by_ticker[ticker]
         for start in range(0, len(items), summarize.BATCH_SIZE):
             if not first:
                 pause(PAUSE_BETWEEN_BATCHES)
             first = False
             batch = items[start:start + summarize.BATCH_SIZE]
-            accepted, rejected, leftover = summarize.apply_judgements(batch, judge_fn(company, batch))
+            accepted, rejected, leftover = judge_batch(judge_fn, company, batch, log)
             for article in accepted:
                 store.add(article)
-            for url in rejected:
-                store.reject(url)
+            for c in rejected:
+                store.reject(c["url"], ticker)
+                # 複数社に関係しうる記事は、残りの会社の観点でもう一度判定する
+                rest = [t for t in c["companies"] if t != ticker]
+                if rest:
+                    pending.setdefault(rest[0], []).append({**c, "companies": rest})
             save()
             log(f"{ticker}: 追加 {len(accepted)} / 除外 {len(rejected)} / 判定なし {len(leftover)}")
 
