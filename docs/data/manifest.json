@@ -106,8 +106,9 @@
   },
   {
    "month": "2025-12",
-   "total": 93,
+   "total": 160,
    "counts": {
+    "NBIS": 67,
     "IONQ": 85,
     "JMIA": 8
    }
