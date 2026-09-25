@@ -18,7 +18,7 @@ def item(title, link, date="Thu, 24 Sep 2026 07:00:00 GMT", source=None, desc=""
 
 def test_google_news_url_encodes_query_and_lang():
     url = sources.google_news_url("IonQ", "en", when="1d")
-    assert url.startswith("https://news.google.com/rss/search?q=IonQ+when%3A1d&")
+    assert url.startswith("https://news.google.com/rss/search?q=IonQ+when:1d&")
     assert url.endswith("hl=en-US&gl=US&ceid=US:en")
     assert "hl=ja&gl=JP&ceid=JP:ja" in sources.google_news_url("イオンキュー", "ja")
 
