@@ -77,7 +77,7 @@ def apply_judgements(items: list[dict], judgements: list[Judgement]):
             rejected.append(c)
             continue
         category = j.category if j.category in CATEGORIES else "その他"
-        if c.get("form") in ("10-Q", "10-K"):
+        if c.get("form") in ("10-Q", "10-K", "20-F"):
             category = "決算・業績"
         accepted.append({
             "id": c["id"], "companies": c["companies"], "title": c["title"],

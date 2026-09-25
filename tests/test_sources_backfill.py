@@ -131,3 +131,12 @@ def test_fetch_backfill_google_queries_each_language_with_overlap():
     assert len(urls) == 2
     assert "after:2026-07-31" in urls[0] and "before:2026-09-01" in urls[0]
     assert "hl=ja" in urls[1]
+
+
+def test_foreign_issuer_forms_are_included():
+    b = block([
+        ("6-K", "0001756708-26-000010", "pr.htm", "6-K", "2026-08-12T10:00:00.000Z", "2026-08-12", ""),
+        ("20-F", "0001756708-26-000005", "ar.htm", "20-F", "2026-03-20T10:00:00.000Z", "2026-03-20", ""),
+    ])
+    out = sources.sec_candidates([b], COMPANY, since=date(2026, 1, 1), fetched="x")
+    assert [c["form"] for c in out] == ["6-K", "20-F"]

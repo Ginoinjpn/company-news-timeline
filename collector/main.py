@@ -137,6 +137,17 @@ def run_backfill(companies, judge_fn, now, since, data_dir=DATA_DIR, checkpoint=
                 checkpoint(f"Backfill {company['ticker']} {after:%Y-%m}")
 
 
+def select_companies(ticker_arg):
+    if not ticker_arg:
+        return list(COMPANIES)
+    wanted = [t.strip().upper() for t in ticker_arg.split(",") if t.strip()]
+    by_ticker = {c["ticker"]: c for c in COMPANIES}
+    missing = [t for t in wanted if t not in by_ticker]
+    if missing:
+        raise SystemExit(f"companies.py に登録されていないティッカーです: {', '.join(missing)}")
+    return [by_ticker[t] for t in wanted]
+
+
 def git_checkpoint(message: str) -> None:
     subprocess.run(["bash", "scripts/commit-data.sh", message], check=False)
 
@@ -155,15 +166,13 @@ def main(argv=None) -> None:
     parser = argparse.ArgumentParser(description="企業ニュースの収集")
     parser.add_argument("--backfill", action="store_true", help="過去分を取り込む")
     parser.add_argument("--since", type=date.fromisoformat, help="過去分の開始日（既定は730日前）")
-    parser.add_argument("--ticker", help="対象のティッカー（既定は全社）")
+    parser.add_argument("--ticker", help="対象のティッカー。カンマ区切りで複数指定できる（既定は全社）")
     parser.add_argument("--dry-run", action="store_true", help="取得だけ行い、件数を表示する（Gemini と保存なし）")
     parser.add_argument("--checkpoint", action="store_true", help="過去分の1か月ごとに commit-data.sh でコミットする")
     args = parser.parse_args(argv)
 
     now = datetime.now(timezone.utc)
-    companies = [c for c in COMPANIES if not args.ticker or c["ticker"] == args.ticker.upper()]
-    if not companies:
-        raise SystemExit(f"companies.py に登録されていないティッカーです: {args.ticker}")
+    companies = select_companies(args.ticker)
     if args.dry_run:
         dry_run(companies, now)
         return

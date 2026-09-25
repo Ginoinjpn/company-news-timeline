@@ -159,3 +159,10 @@ def test_dedupe_keeps_recurring_headlines_from_different_weeks_apart():
     out = main.dedupe([cand("same", "https://fool/1", published="2026-06-01T00:00:00Z"),
                        cand("same", "https://fool/2", published="2026-09-20T00:00:00Z")])
     assert len(out) == 2 and out[0]["id"] != out[1]["id"]
+
+
+def test_select_companies_accepts_comma_separated_tickers():
+    assert [c["ticker"] for c in main.select_companies("jmia, 6965")] == ["JMIA", "6965"]
+    assert len(main.select_companies(None)) == len(main.COMPANIES)
+    with pytest.raises(SystemExit):
+        main.select_companies("NOPE")

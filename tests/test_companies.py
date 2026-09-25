@@ -25,3 +25,12 @@ def test_ionq_is_configured():
     ionq = next(c for c in COMPANIES if c["ticker"] == "IONQ")
     assert ionq["sec_cik"] == "0001824920"
     assert ionq["official_rss"] == "https://ionq.com/news/rss.xml"
+
+
+def test_new_companies_are_configured():
+    by_ticker = {c["ticker"]: c for c in COMPANIES}
+    assert {"IONQ", "JMIA", "NBIS", "6965"} <= by_ticker.keys()
+    assert by_ticker["JMIA"]["sec_cik"] == "0001756708"
+    assert by_ticker["NBIS"]["sec_cik"] == "0001513845"
+    assert by_ticker["6965"]["us_listed"] is False
+    assert "6965" in by_ticker["6965"]["official_rss"]

@@ -87,3 +87,12 @@ def test_fetch_recent_survives_a_failing_source_and_filters_old():
     out = sources.fetch_recent(company, NOW, fetch=fake_fetch, log=logs.append)
     assert sorted(c["url"] for c in out if c["source"] == "Yahoo Finance") == ["https://a/1", "https://a/3"]
     assert any("boom" in line for line in logs)
+
+
+def test_non_us_company_skips_us_ticker_feeds():
+    company = {"ticker": "6965", "name": "浜松ホトニクス", "queries_en": ['"Hamamatsu Photonics"'], "queries_ja": ["浜松ホトニクス"],
+               "us_listed": False, "official_rss": "https://webapi.yanoshin.jp/webapi/tdnet/list/6965.rss"}
+    urls = [u for u, _ in sources.recent_feed_specs(company)]
+    assert not any("yahoo.com" in u or "seekingalpha" in u or "nasdaq.com" in u for u in urls)
+    assert len(urls) == 3
+    assert "%22Hamamatsu+Photonics%22" in urls[0]

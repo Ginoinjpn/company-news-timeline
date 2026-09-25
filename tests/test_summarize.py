@@ -98,3 +98,8 @@ def test_judge_does_not_hide_non_retryable_api_errors():
     bad_key = errors.APIError(400, {"error": {"message": "API key not valid"}})
     with pytest.raises(errors.APIError):
         summarize.judge(FakeClient([bad_key]), COMPANY, [cand(0)], sleep=lambda s: None)
+
+
+def test_annual_report_20f_is_earnings():
+    [a], _, _ = summarize.apply_judgements([cand(0, origin="sec", form="20-F")], [j(0, category="その他")])
+    assert a["category"] == "決算・業績"

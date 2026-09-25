@@ -10,7 +10,7 @@ from collector.text import article_id, iso_now, normalize_title, parse_iso, stri
 
 BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"
 RECENT_DAYS = 3
-SEC_FORMS = {"8-K", "10-Q", "10-K", "S-1", "DEF 14A"}
+SEC_FORMS = {"8-K", "10-Q", "10-K", "S-1", "DEF 14A", "6-K", "20-F", "F-1"}
 GOOGLE_LIMIT = 100
 
 
@@ -82,9 +82,10 @@ def recent_feed_specs(company: dict) -> list[tuple[str, dict]]:
         specs.append((google_news_url(query, "en", when="1d"), {"source_name": "Google News", **other}))
     for query in company["queries_ja"]:
         specs.append((google_news_url(query, "ja", when="1d"), {"source_name": "Google News", "lang": "ja", "origin": "other"}))
-    specs.append((f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US", {"source_name": "Yahoo Finance", **other}))
-    specs.append((f"https://seekingalpha.com/api/sa/combined/{ticker}.xml", {"source_name": "Seeking Alpha", **other}))
-    specs.append((f"https://www.nasdaq.com/feed/rssoutbound?symbol={ticker}", {"source_name": "Nasdaq", **other}))
+    if company.get("us_listed", True):
+        specs.append((f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US", {"source_name": "Yahoo Finance", **other}))
+        specs.append((f"https://seekingalpha.com/api/sa/combined/{ticker}.xml", {"source_name": "Seeking Alpha", **other}))
+        specs.append((f"https://www.nasdaq.com/feed/rssoutbound?symbol={ticker}", {"source_name": "Nasdaq", **other}))
     if company.get("official_rss"):
         specs.append((company["official_rss"], {
             "source_name": f"{company['name']} 公式", "lang": "en", "origin": "official",
