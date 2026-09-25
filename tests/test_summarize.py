@@ -103,3 +103,24 @@ def test_judge_does_not_hide_non_retryable_api_errors():
 def test_annual_report_20f_is_earnings():
     [a], _, _ = summarize.apply_judgements([cand(0, origin="sec", form="20-F")], [j(0, category="その他")])
     assert a["category"] == "決算・業績"
+
+
+def art(i, title_ja, source="Reuters", published="2026-09-24T00:00:00Z"):
+    return {"id": f"a{i}", "title": f"t{i}", "title_ja": title_ja, "source": source, "published": published, "fetched": published}
+
+
+def test_event_prompt_labels_existing_and_new():
+    prompt = summarize.build_event_prompt(COMPANY, [art(0, "既存の記事")], [art(1, "新しい記事", source="Yahoo")])
+    assert "E0. 2026-09-24 [Reuters] 既存の記事" in prompt
+    assert "N0. 2026-09-24 [Yahoo] 新しい記事" in prompt
+
+
+def test_find_same_events_returns_label_mapping():
+    payload = json.dumps([{"label": "N0", "same_as": " E0 "}, {"label": "N1", "same_as": ""}])
+    out = summarize.find_same_events(FakeClient([payload]), COMPANY, [art(0, "x")], [art(1, "y"), art(2, "z")], sleep=lambda s: None)
+    assert out == {"N0": "E0", "N1": ""}
+
+
+def test_find_same_events_raises_bad_response_on_garbage():
+    with pytest.raises(summarize.BadResponse):
+        summarize.find_same_events(FakeClient(["nope"]), COMPANY, [], [art(1, "y")], sleep=lambda s: None)

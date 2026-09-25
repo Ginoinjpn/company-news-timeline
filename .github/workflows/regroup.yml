@@ -1,0 +1,41 @@
+name: 同じ出来事の記事をまとめ直す
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: '対象のティッカー。カンマ区切りで複数可（空欄なら全社）'
+        required: false
+        default: ''
+
+concurrency:
+  group: news-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  regroup:
+    # データは main に push するので、他のブランチから実行してもコードを main に混ぜない
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - name: まとめ直し
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TICKER: ${{ inputs.ticker }}
+        run: |
+          args=(--regroup)
+          if [ -n "$TICKER" ]; then args+=(--ticker "$TICKER"); fi
+          python -m collector.main "${args[@]}"
+      - name: データのコミットと push
+        if: always()
+        run: bash scripts/commit-data.sh "Merge duplicate reports of the same event"

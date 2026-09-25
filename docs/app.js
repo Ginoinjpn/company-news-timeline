@@ -2,8 +2,66 @@
 
 const MARKET = "株価・市場";
 const PRELOAD_PX = 800;
+const RELATED_SHOWN = 5;
 const state = { manifest: null, loaded: new Map(), tab: "ALL", q: "", market: false };
 const $ = (id) => document.getElementById(id);
+
+// 既読は開いた URL で覚える（記事がまとめ直されて ID が変わっても既読のまま残るように）
+const READ_KEY = "company-news-timeline:read-urls";
+const READ_LIMIT = 3000;
+const readUrls = loadReadUrls();
+
+function loadReadUrls() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(READ_KEY) || "[]");
+    return new Set(Array.isArray(saved) ? saved : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveReadUrls() {
+  try {
+    localStorage.setItem(READ_KEY, JSON.stringify([...readUrls].slice(-READ_LIMIT)));
+  } catch {
+    // 保存できない環境（プライベートモードなど）では、このページを開いている間だけ既読を表示する
+  }
+}
+
+function articleUrls(article) {
+  return [article.url, ...(article.related || []).map((r) => r.url)];
+}
+
+function isRead(article) {
+  return articleUrls(article).some((url) => readUrls.has(url));
+}
+
+function markRead(url, li) {
+  // 最近開いたものを末尾に回し、上限を超えたら古いものから忘れる
+  readUrls.delete(url);
+  readUrls.add(url);
+  saveReadUrls();
+  if (!li.classList.contains("read")) {
+    li.classList.add("read");
+    li.querySelector(".meta").append(el("span", "read-label", "既読"));
+  }
+}
+
+function externalLink(text, rawUrl, li, className) {
+  const url = safeUrl(rawUrl);
+  if (!url) return el("span", className, text);
+  const link = el("a", className, text);
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  const onOpen = (event) => {
+    if (event.type === "auxclick" && event.button !== 1) return;
+    markRead(rawUrl, li);
+  };
+  link.addEventListener("click", onOpen);
+  link.addEventListener("auxclick", onOpen);
+  return link;
+}
 
 const TZ = "Asia/Tokyo";
 const dayKeyFmt = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
@@ -61,7 +119,8 @@ function matches(article) {
   if (state.tab !== "ALL" && !article.companies.includes(state.tab)) return false;
   if (!state.market && article.category === MARKET) return false;
   if (!state.q) return true;
-  const haystack = `${article.title_ja} ${article.title} ${article.summary} ${article.source}`.toLowerCase();
+  const related = (article.related || []).map((r) => `${r.source} ${r.title}`).join(" ");
+  const haystack = `${article.title_ja} ${article.title} ${article.summary ?? ""} ${article.source} ${related}`.toLowerCase();
   return state.q.split(/\s+/).every((word) => haystack.includes(word));
 }
 
@@ -78,22 +137,29 @@ function card(article, date) {
   if (article.category) meta.append(el("span", "cat", article.category));
   meta.append(el("span", "src", article.source));
   li.append(meta);
+  if (isRead(article)) {
+    li.classList.add("read");
+    meta.append(el("span", "read-label", "既読"));
+  }
 
   const heading = el("h3", "title");
-  const label = article.title_ja || article.title;
-  const url = safeUrl(article.url);
-  if (url) {
-    const link = el("a", null, label);
-    link.href = url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    heading.append(link);
-  } else {
-    heading.textContent = label;
-  }
+  heading.append(externalLink(article.title_ja || article.title, article.url, li));
   li.append(heading);
   if (article.summary) li.append(el("p", "summary", article.summary));
   if (article.title_ja && article.title_ja !== article.title) li.append(el("p", "orig", article.title));
+
+  const related = article.related || [];
+  if (related.length) {
+    const also = el("p", "also", "ほかの報道: ");
+    related.slice(0, RELATED_SHOWN).forEach((r, i) => {
+      if (i) also.append("、");
+      const link = externalLink(r.source, r.url, li);
+      if (r.title) link.title = r.title;
+      also.append(link);
+    });
+    if (related.length > RELATED_SHOWN) also.append(` ほか${related.length - RELATED_SHOWN}件`);
+    li.append(also);
+  }
   return li;
 }
 
@@ -169,7 +235,12 @@ function renderTabs() {
 }
 
 function readHash() {
-  const wanted = decodeURIComponent(location.hash.slice(1)).toUpperCase();
+  let wanted = "";
+  try {
+    wanted = decodeURIComponent(location.hash.slice(1)).toUpperCase();
+  } catch {
+    // 壊れた # はすべて表示にする
+  }
   state.tab = state.manifest.companies.some((c) => c.ticker === wanted) ? wanted : "ALL";
 }
 

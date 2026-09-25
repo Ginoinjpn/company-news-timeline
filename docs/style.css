@@ -78,5 +78,11 @@ h1 { margin: 0; font-size: 1.1rem; }
 .title a:hover, .title a:focus-visible { color: var(--accent); text-decoration: underline; }
 .summary { margin: 0; font-size: .9rem; }
 .orig { margin: 6px 0 0; font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
+.also { margin: 6px 0 0; font-size: .78rem; color: var(--muted); }
+.also a { color: var(--accent); text-decoration: none; }
+.also a:hover, .also a:focus-visible { text-decoration: underline; }
+.read-label { padding: 0 6px; border-radius: 4px; background: var(--line); color: var(--muted); }
+.card.read { background: var(--bg); }
+.card.read .title a { color: var(--muted); font-weight: 500; }
 .status { padding-block: 24px 48px; text-align: center; font-size: .9rem; color: var(--muted); }
 .sentinel { height: 1px; }

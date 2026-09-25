@@ -9,10 +9,78 @@ from pathlib import Path
 from companies import COMPANIES
 from collector import sources, summarize
 from collector.store import ORIGIN_PRIORITY, Store, dated_id, same_story
+from collector.text import iso_now, parse_iso
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "docs" / "data"
 BACKFILL_DAYS = 730
 PAUSE_BETWEEN_BATCHES = 4
+SAME_EVENT_DAYS = 3
+REGROUP_CHUNK = 40
+
+
+def _stamp(article: dict) -> str:
+    return article.get("published") or article["fetched"]
+
+
+def resolve_groups(n_labels, links: dict, e_labels) -> dict:
+    """Gemini が返した same_as をたどり、各 N 記事がまとまる先（E 記事か、グループ代表の N 記事）を決める。"""
+    n_set = set(n_labels)
+
+    def root(label):
+        seen = [label]
+        current = label
+        while True:
+            target = (links.get(current) or "").strip()
+            if target in e_labels:
+                return target
+            if target not in n_set:
+                return current
+            if target in seen:
+                return min(seen)
+            seen.append(target)
+            current = target
+
+    return {label: root(label) for label in n_labels}
+
+
+def _primary_rank(article: dict):
+    # 公式・SEC を優先し、株価だけの記事より中身のある記事を、同じなら早く出た記事を代表にする
+    return (ORIGIN_PRIORITY[article["origin"]], article["category"] == "株価・市場", _stamp(article), article["id"])
+
+
+def merge_same_events(store: Store, company: dict, items: list[dict], cluster_fn, log=print) -> None:
+    items = [store.articles[a["id"]] for a in items if a["id"] in store.articles]
+    if not items:
+        return
+    stamps = [_stamp(a) for a in items]
+    window = timedelta(days=SAME_EVENT_DAYS)
+    start = iso_now(parse_iso(min(stamps)) - window)
+    end = iso_now(parse_iso(max(stamps)) + window)
+    context = store.event_context(company["ticker"], start, end, exclude={a["id"] for a in items})
+    try:
+        links = cluster_fn(company, context, items)
+    except summarize.BadResponse as e:
+        log(f"{company['ticker']}: 同じ出来事の判定に失敗したため、まとめずに残します ({e})")
+        return
+    e_labels = {f"E{i}": a for i, a in enumerate(context)}
+    n_labels = {f"N{i}": a for i, a in enumerate(items)}
+    groups: dict[str, list] = {}
+    for label, root in resolve_groups(list(n_labels), links, e_labels).items():
+        if label != root:
+            groups.setdefault(root, []).append(label)
+    merged = 0
+    for root, members in groups.items():
+        head = e_labels.get(root) or n_labels[root]
+        group = [a for a in [head] + [n_labels[m] for m in members] if a["id"] in store.articles]
+        if len(group) < 2:
+            continue
+        primary = min(group, key=_primary_rank)
+        for article in group:
+            if article is not primary:
+                store.absorb(primary, article)
+                merged += 1
+    if merged:
+        log(f"{company['ticker']}: 同じ出来事の記事を {merged} 件まとめました")
 
 
 def dedupe(candidates: list[dict]) -> list[dict]:
@@ -72,7 +140,7 @@ def judge_batch(judge_fn, company, batch, log=print):
         return a1 + a2, r1 + r2, l1 + l2
 
 
-def process(store, candidates, judge_fn, save, company_by_ticker, log=print, pause=time.sleep) -> None:
+def process(store, candidates, judge_fn, save, company_by_ticker, log=print, pause=time.sleep, cluster_fn=None) -> None:
     new, changed = split_new(store, candidates)
     if changed:
         save()
@@ -90,8 +158,10 @@ def process(store, candidates, judge_fn, save, company_by_ticker, log=print, pau
             first = False
             batch = items[start:start + summarize.BATCH_SIZE]
             accepted, rejected, leftover = judge_batch(judge_fn, company, batch, log)
-            for article in accepted:
-                store.add(article)
+            added = [store.add(article) for article in accepted]
+            if cluster_fn and added:
+                pause(PAUSE_BETWEEN_BATCHES)
+                merge_same_events(store, company, added, cluster_fn, log)
             for c in rejected:
                 store.reject(c["url"], ticker)
                 # 複数社に関係しうる記事は、残りの会社の観点でもう一度判定する
@@ -107,7 +177,7 @@ def manifest_companies(selected):
     return COMPANIES if all(c in COMPANIES for c in selected) else selected
 
 
-def run_recent(companies, judge_fn, now, data_dir=DATA_DIR, fetch_recent=sources.fetch_recent, log=print) -> None:
+def run_recent(companies, judge_fn, now, data_dir=DATA_DIR, fetch_recent=sources.fetch_recent, log=print, cluster_fn=None) -> None:
     store = Store.load(data_dir)
     save = lambda: store.save(data_dir, manifest_companies(companies), now)
     by_ticker = {c["ticker"]: c for c in companies}
@@ -116,11 +186,27 @@ def run_recent(companies, judge_fn, now, data_dir=DATA_DIR, fetch_recent=sources
         found = fetch_recent(company, now)
         log(f"{company['ticker']}: 候補 {len(found)} 件")
         candidates.extend(found)
-    process(store, candidates, judge_fn, save, by_ticker, log=log)
+    process(store, candidates, judge_fn, save, by_ticker, log=log, cluster_fn=cluster_fn)
     save()
 
 
-def run_backfill(companies, judge_fn, now, since, data_dir=DATA_DIR, checkpoint=None, log=print) -> None:
+def run_regroup(companies, cluster_fn, now, data_dir=DATA_DIR, log=print, pause=time.sleep) -> None:
+    """保存済みの記事を古い順に見直し、別サイトが報じた同じ出来事を1件にまとめる。"""
+    store = Store.load(data_dir)
+    for company in companies:
+        articles = sorted((a for a in store.articles.values() if company["ticker"] in a["companies"]), key=_stamp)
+        before = len(articles)
+        for start in range(0, len(articles), REGROUP_CHUNK):
+            chunk = [a for a in articles[start:start + REGROUP_CHUNK] if a["id"] in store.articles]
+            if start:
+                pause(PAUSE_BETWEEN_BATCHES)
+            merge_same_events(store, company, chunk, cluster_fn, log)
+            store.save(data_dir, manifest_companies(companies), now)
+        after = sum(company["ticker"] in a["companies"] for a in store.articles.values())
+        log(f"{company['ticker']}: {before} 件 → {after} 件")
+
+
+def run_backfill(companies, judge_fn, now, since, data_dir=DATA_DIR, checkpoint=None, log=print, cluster_fn=None) -> None:
     store = Store.load(data_dir)
     save = lambda: store.save(data_dir, manifest_companies(companies), now)
     by_ticker = {c["ticker"]: c for c in companies}
@@ -131,7 +217,7 @@ def run_backfill(companies, judge_fn, now, since, data_dir=DATA_DIR, checkpoint=
             month = sources.fetch_backfill_google(company, after, before, now, log=log)
             month += [c for c in extras if sources.in_window(c, after, before, now)]
             log(f"{company['ticker']} {after:%Y-%m}: 候補 {len(month)} 件")
-            process(store, month, judge_fn, save, by_ticker, log=log)
+            process(store, month, judge_fn, save, by_ticker, log=log, cluster_fn=cluster_fn)
             save()
             if checkpoint:
                 checkpoint(f"Backfill {company['ticker']} {after:%Y-%m}")
@@ -169,6 +255,7 @@ def main(argv=None) -> None:
     parser.add_argument("--ticker", help="対象のティッカー。カンマ区切りで複数指定できる（既定は全社）")
     parser.add_argument("--dry-run", action="store_true", help="取得だけ行い、件数を表示する（Gemini と保存なし）")
     parser.add_argument("--checkpoint", action="store_true", help="過去分の1か月ごとに commit-data.sh でコミットする")
+    parser.add_argument("--regroup", action="store_true", help="保存済みの記事のうち、同じ出来事を報じたものを1件にまとめ直す")
     args = parser.parse_args(argv)
 
     now = datetime.now(timezone.utc)
@@ -183,12 +270,16 @@ def main(argv=None) -> None:
     from google import genai
     client = genai.Client(api_key=api_key)
     judge_fn = lambda company, batch: summarize.judge(client, company, batch)
+    cluster_fn = lambda company, context, items: summarize.find_same_events(client, company, context, items)
 
-    if args.backfill:
+    if args.regroup:
+        run_regroup(companies, cluster_fn, now)
+    elif args.backfill:
         since = args.since or (now - timedelta(days=BACKFILL_DAYS)).date()
-        run_backfill(companies, judge_fn, now, since, checkpoint=git_checkpoint if args.checkpoint else None)
+        run_backfill(companies, judge_fn, now, since, checkpoint=git_checkpoint if args.checkpoint else None,
+                     cluster_fn=cluster_fn)
     else:
-        run_recent(companies, judge_fn, now)
+        run_recent(companies, judge_fn, now, cluster_fn=cluster_fn)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from collector.text import article_id, iso_now, parse_iso
 ORIGIN_PRIORITY = {"official": 0, "sec": 1, "other": 2}
 PUBLIC_FIELDS = (
     "id", "companies", "title", "title_ja", "summary", "category",
-    "url", "source", "origin", "lang", "published", "fetched",
+    "url", "source", "origin", "lang", "published", "fetched", "related",
 )
 _MONTH_FILE_RE = re.compile(r"^\d{4}-\d{2}\.json$")
 SAME_STORY_DAYS = 3
@@ -102,17 +102,43 @@ class Store:
                 existing["companies"].append(ticker)
                 changed = True
         if ORIGIN_PRIORITY[candidate["origin"]] < ORIGIN_PRIORITY[existing["origin"]]:
+            existing.setdefault("related", []).append(
+                {"source": existing["source"], "url": existing["url"], "title": existing.get("title_ja") or existing["title"]})
             existing.update(url=candidate["url"], source=candidate["source"], origin=candidate["origin"])
             self._url_index[candidate["url"]] = existing["id"]
             changed = True
         return changed
 
-    def add(self, article: dict) -> None:
+    def add(self, article: dict) -> dict:
         clash = self.articles.get(article["id"])
         if clash and clash["url"] != article["url"] and not same_story(clash, article):
             article = {**article, "id": dated_id(article)}
         self.articles[article["id"]] = article
-        self._url_index[article["url"]] = article["id"]
+        for url in [article["url"]] + [r["url"] for r in article.get("related", [])]:
+            self._url_index[url] = article["id"]
+        return article
+
+    def absorb(self, primary: dict, duplicate: dict) -> None:
+        """同じ出来事を報じた別の記事を、primary の「ほかの報道」としてまとめる。"""
+        related = primary.setdefault("related", [])
+        known = {primary["url"]} | {r["url"] for r in related}
+        own = {"source": duplicate["source"], "url": duplicate["url"], "title": duplicate.get("title_ja") or duplicate["title"]}
+        for entry in [own] + duplicate.get("related", []):
+            if entry["url"] not in known:
+                related.append(entry)
+                known.add(entry["url"])
+        for ticker in duplicate["companies"]:
+            if ticker not in primary["companies"]:
+                primary["companies"].append(ticker)
+        self.articles.pop(duplicate["id"], None)
+        for url in [duplicate["url"]] + [r["url"] for r in duplicate.get("related", [])]:
+            self._url_index[url] = primary["id"]
+
+    def event_context(self, ticker: str, start: str, end: str, exclude=(), limit: int = 150) -> list[dict]:
+        found = [a for a in self.articles.values()
+                 if ticker in a["companies"] and a["id"] not in exclude and start <= _timestamp(a) <= end]
+        found.sort(key=lambda a: (_timestamp(a), a["id"]), reverse=True)
+        return found[:limit]
 
     def reject(self, url: str, ticker: str) -> None:
         self._rejected.add(_rejection_key(ticker, url))
@@ -129,6 +155,10 @@ class Store:
                 json.dumps({k: a[k] for k in PUBLIC_FIELDS if k in a}, ensure_ascii=False) for a in items
             )
             _write_atomic(data_dir / f"{month}.json", f"[\n{lines}\n]\n")
+        for path in data_dir.iterdir():
+            # 記事がまとめられて空になった月のファイルは消す（残すと古い内容が表示される）
+            if _MONTH_FILE_RE.match(path.name) and path.stem not in by_month:
+                path.unlink()
         _write_atomic(data_dir / "rejected.json", json.dumps(sorted(self._rejected), ensure_ascii=False, indent=0) + "\n")
         _write_atomic(data_dir / "manifest.json",
                       json.dumps(build_manifest(by_month, companies, now), ensure_ascii=False, indent=1) + "\n")

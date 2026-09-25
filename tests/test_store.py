@@ -121,3 +121,50 @@ def test_merge_does_not_readd_company_rejected_for_that_url():
     store.reject("https://g/1", "IONQ")
     store.merge(existing, {"id": "a", "companies": ["IONQ"], "url": "https://g/1", "source": "S", "origin": "other"})
     assert existing["companies"] == ["NVDA"]
+
+
+def test_absorb_folds_duplicate_into_primary_and_redirects_urls():
+    store = Store()
+    primary = make_article("p", "2026-09-24T00:00:00Z", url="https://ionq.com/1", origin="official")
+    dup = make_article("d", "2026-09-24T03:00:00Z", companies=("NVDA",), url="https://reuters/1")
+    dup["related"] = [{"source": "Yahoo", "url": "https://yahoo/1", "title": "y"}]
+    store.add(primary)
+    store.add(dup)
+    store.absorb(primary, dup)
+    assert "d" not in store.articles
+    assert [r["url"] for r in primary["related"]] == ["https://reuters/1", "https://yahoo/1"]
+    assert primary["related"][0] == {"source": "Reuters", "url": "https://reuters/1", "title": "見出し d"}
+    assert primary["companies"] == ["IONQ", "NVDA"]
+    assert store.find({"id": "zzz", "url": "https://yahoo/1"}) is primary
+
+
+def test_related_urls_are_indexed_after_reload(tmp_path):
+    store = Store()
+    a = make_article("p", "2026-09-24T00:00:00Z")
+    a["related"] = [{"source": "Yahoo", "url": "https://yahoo/1", "title": "y"}]
+    store.add(a)
+    store.save(tmp_path, COMPANIES, NOW)
+    assert Store.load(tmp_path).find({"id": "zzz", "url": "https://yahoo/1"})["id"] == "p"
+
+
+def test_save_removes_month_files_that_became_empty(tmp_path):
+    store = Store()
+    old = make_article("old", "2026-08-31T23:00:00Z")
+    new = make_article("new", "2026-09-01T01:00:00Z")
+    store.add(old)
+    store.add(new)
+    store.save(tmp_path, COMPANIES, NOW)
+    store.absorb(new, old)
+    store.save(tmp_path, COMPANIES, NOW)
+    assert not (tmp_path / "2026-08.json").exists()
+    assert [m["month"] for m in json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))["months"]] == ["2026-09"]
+
+
+def test_event_context_selects_company_articles_in_window():
+    store = Store()
+    store.add(make_article("in", "2026-09-20T00:00:00Z"))
+    store.add(make_article("far", "2026-09-01T00:00:00Z"))
+    store.add(make_article("other", "2026-09-20T00:00:00Z", companies=("NVDA",)))
+    store.add(make_article("self", "2026-09-20T00:00:00Z"))
+    ctx = store.event_context("IONQ", "2026-09-18T00:00:00Z", "2026-09-23T00:00:00Z", exclude={"self"})
+    assert [a["id"] for a in ctx] == ["in"]

@@ -166,3 +166,92 @@ def test_select_companies_accepts_comma_separated_tickers():
     assert len(main.select_companies(None)) == len(main.COMPANIES)
     with pytest.raises(SystemExit):
         main.select_companies("NOPE")
+
+
+def stored(id_, published, origin="other", category="その他", ticker="IONQ", source="S"):
+    return {"id": id_, "companies": [ticker], "title": f"T {id_}", "title_ja": f"見出し {id_}", "summary": "s",
+            "category": category, "url": f"https://x/{id_}", "source": source, "origin": origin, "lang": "en",
+            "published": published, "fetched": published}
+
+
+def test_resolve_groups_follows_chains_and_breaks_cycles():
+    roots = main.resolve_groups(["N0", "N1", "N2", "N3", "N4"],
+                                {"N0": "", "N1": "N0", "N2": "N1", "N3": "N4", "N4": "N3"}, {"E0"})
+    assert roots["N1"] == "N0" and roots["N2"] == "N0"
+    assert roots["N3"] == roots["N4"]
+    assert main.resolve_groups(["N0"], {"N0": "E0"}, {"E0"}) == {"N0": "E0"}
+    assert main.resolve_groups(["N0"], {"N0": "E9"}, {"E0"}) == {"N0": "N0"}
+
+
+def test_merge_same_events_folds_new_article_into_existing_one():
+    store = Store()
+    old = stored("old", "2026-09-24T00:00:00Z", source="Reuters")
+    new = stored("new", "2026-09-24T05:00:00Z", source="Yahoo")
+    store.add(old)
+    store.add(new)
+    main.merge_same_events(store, IONQ, [new], lambda company, context, items: {"N0": "E0"}, log=lambda m: None)
+    assert set(store.articles) == {"old"}
+    assert store.articles["old"]["related"][0]["source"] == "Yahoo"
+
+
+def test_merge_same_events_prefers_official_then_non_market_then_earliest():
+    store = Store()
+    items = [stored("m", "2026-09-24T01:00:00Z", category="株価・市場"),
+             stored("o", "2026-09-24T03:00:00Z", origin="official"),
+             stored("e", "2026-09-24T00:00:00Z")]
+    for a in items:
+        store.add(a)
+    main.merge_same_events(store, IONQ, items, lambda c, ctx, its: {"N0": "N2", "N1": "N2", "N2": ""}, log=lambda m: None)
+    assert set(store.articles) == {"o"}
+    items2 = [stored("m2", "2026-09-24T01:00:00Z", category="株価・市場"), stored("e2", "2026-09-24T02:00:00Z")]
+    for a in items2:
+        store.add(a)
+    main.merge_same_events(store, IONQ, items2, lambda c, ctx, its: {"N0": "N1"}, log=lambda m: None)
+    assert "e2" in store.articles and "m2" not in store.articles
+
+
+def test_merge_same_events_keeps_articles_when_gemini_output_is_bad():
+    store = Store()
+    a, b = stored("a", "2026-09-24T00:00:00Z"), stored("b", "2026-09-24T01:00:00Z")
+    store.add(a)
+    store.add(b)
+
+    def bad(company, context, items):
+        raise main.summarize.BadResponse("x")
+
+    main.merge_same_events(store, IONQ, [a, b], bad, log=lambda m: None)
+    assert set(store.articles) == {"a", "b"}
+
+
+def test_process_merges_cross_site_reports_of_the_same_event():
+    store = Store()
+    store.add(stored("known", "2026-09-24T00:00:00Z", source="Reuters"))
+
+    def cluster(company, context, items):
+        assert [a["id"] for a in context] == ["known"]
+        return {"N0": "E0", "N1": "E0"}
+
+    main.process(store, [cand("x", "https://y/1"), cand("y", "https://y/2")], all_relevant, lambda: None, BY_TICKER,
+                 log=lambda m: None, pause=lambda s: None, cluster_fn=cluster)
+    assert set(store.articles) == {"known"}
+    assert len(store.articles["known"]["related"]) == 2
+    new, _ = main.split_new(store, [cand("zz", "https://y/2")])
+    assert new == []
+
+
+def test_run_regroup_collapses_existing_duplicates(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "REGROUP_CHUNK", 2)
+    store = Store()
+    for a in [stored("a", "2026-09-20T00:00:00Z"), stored("b", "2026-09-20T02:00:00Z"), stored("c", "2026-09-20T04:00:00Z")]:
+        store.add(a)
+    store.save(tmp_path, [IONQ], NOW)
+
+    def cluster(company, context, items):
+        labels = {f"E{i}": a["id"] for i, a in enumerate(context)} | {f"N{i}": a["id"] for i, a in enumerate(items)}
+        first = min(labels, key=lambda l: labels[l])
+        return {l: (first if l != first else "") for l in labels if l.startswith("N")}
+
+    main.run_regroup([IONQ], cluster, NOW, tmp_path, log=lambda m: None, pause=lambda s: None)
+    loaded = Store.load(tmp_path)
+    assert set(loaded.articles) == {"a"}
+    assert {r["url"] for r in loaded.articles["a"]["related"]} == {"https://x/b", "https://x/c"}
