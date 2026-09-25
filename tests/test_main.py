@@ -340,3 +340,28 @@ def test_run_resummarize_stops_without_deleting_when_nothing_is_readable(tmp_pat
     with pytest.raises(RuntimeError):
         main.run_resummarize([IONQ], all_relevant, NOW, tmp_path, body_fn=fake_bodies({}), log=lambda m: None, pause=lambda s: None)
     assert len(Store.load(tmp_path).articles) == 12
+
+
+def test_main_exits_cleanly_when_daily_quota_is_used_up(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+
+    def exhausted(*a, **k):
+        raise main.summarize.QuotaExhausted("daily")
+
+    monkeypatch.setattr(main, "run_recent", exhausted)
+    main.main([])
+
+
+def test_resummarize_skips_articles_already_tried(tmp_path):
+    store = Store()
+    tried = {**stored("o", "2026-09-20T00:00:00Z", origin="official")}
+    store.add(tried)
+    store.save(tmp_path, [IONQ], NOW)
+    seen = []
+    main.run_resummarize([IONQ], all_relevant, NOW, tmp_path, body_fn=lambda urls: seen.extend(urls) or {},
+                         log=lambda m: None, pause=lambda s: None)
+    assert Store.load(tmp_path).articles["o"]["basis"] == "headline"
+    seen.clear()
+    main.run_resummarize([IONQ], all_relevant, NOW, tmp_path, body_fn=lambda urls: seen.extend(urls) or {},
+                         log=lambda m: None, pause=lambda s: None)
+    assert seen == []

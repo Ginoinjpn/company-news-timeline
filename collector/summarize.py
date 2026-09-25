@@ -15,6 +15,10 @@ class BadResponse(Exception):
     """Gemini の応答を解釈できない（安全フィルタで空、JSON 不正、形式違い）。"""
 
 
+class QuotaExhausted(Exception):
+    """Gemini API の1日の上限に達した。待っても今日中は回復しない。"""
+
+
 class Judgement(BaseModel):
     index: int
     relevant: bool
@@ -60,6 +64,8 @@ def _generate(client, prompt: str, schema, sleep=time.sleep) -> list:
                 ),
             )
         except errors.APIError as e:
+            if e.code == 429 and "PerDay" in str(e.details):
+                raise QuotaExhausted(str(e)) from e
             if e.code not in RETRY_CODES or attempt == MAX_RETRIES:
                 raise
             sleep(30 * (attempt + 1))

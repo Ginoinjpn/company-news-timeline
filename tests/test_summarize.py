@@ -138,3 +138,14 @@ def test_apply_judgements_records_summary_basis():
     accepted, _, _ = summarize.apply_judgements(items, [j(0), j(1)])
     assert [a["basis"] for a in accepted] == ["body", "headline"]
     assert "body" not in accepted[0]
+
+
+DAILY = {"error": {"code": 429, "message": "Quota exceeded for metric: generate_content_free_tier_requests",
+                   "details": [{"violations": [{"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}]}]}}
+
+
+def test_daily_quota_is_not_retried():
+    client = FakeClient([errors.APIError(429, DAILY), "[]"])
+    with pytest.raises(summarize.QuotaExhausted):
+        summarize.judge(client, COMPANY, [cand(0)], sleep=lambda s: pytest.fail("should not wait"))
+    assert client.models.calls == 1

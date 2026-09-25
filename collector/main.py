@@ -277,7 +277,7 @@ def run_resummarize(companies, judge_fn, now, data_dir=DATA_DIR, body_fn=None, l
     save = lambda: store.save(data_dir, manifest_companies(companies), now)
     for company in companies:
         todo = sorted((a for a in store.articles.values()
-                       if a["companies"][0] == company["ticker"] and a.get("basis") != "body" and a["origin"] != "sec"),
+                       if a["companies"][0] == company["ticker"] and "basis" not in a and a["origin"] != "sec"),
                       key=_stamp, reverse=True)
         rewritten = removed = 0
         for start in range(0, len(todo), RESUMMARIZE_CHUNK):
@@ -296,6 +296,8 @@ def run_resummarize(companies, judge_fn, now, data_dir=DATA_DIR, body_fn=None, l
                     if a["origin"] == "other":
                         store.remove(a)
                         removed += 1
+                    else:
+                        a["basis"] = "headline"  # 本文のない公式発表は、次回から読み直さない
                     continue
                 url, real, body = hit
                 _promote(store, a, url, real)
@@ -388,6 +390,14 @@ def main(argv=None) -> None:
 
     body_fn = article_text.fetch_bodies
 
+    try:
+        run_mode(args, companies, judge_fn, cluster_fn, body_fn, now)
+    except summarize.QuotaExhausted:
+        # 処理済みの分はバッチごとに保存してある。残りは上限が戻った後の実行で続きから処理される
+        print("Gemini API の1日の上限に達したため、ここで終了します（上限は日本時間16時ごろに戻ります）")
+
+
+def run_mode(args, companies, judge_fn, cluster_fn, body_fn, now) -> None:
     if args.resummarize:
         run_resummarize(companies, judge_fn, now, body_fn=body_fn)
     elif args.regroup:

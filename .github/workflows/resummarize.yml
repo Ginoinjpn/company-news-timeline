@@ -1,6 +1,9 @@
 name: 要約の作り直し（本文から）
 
 on:
+  schedule:
+    # Gemini の無料枠が戻った後（日本時間 16:37）。まだ要約を作り直していない記事だけを続きから処理する
+    - cron: '37 7 * * *'
   workflow_dispatch:
     inputs:
       ticker:
