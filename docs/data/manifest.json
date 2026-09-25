@@ -1,0 +1,19 @@
+{
+ "updated": "2026-09-25T09:32:08Z",
+ "companies": [
+  {
+   "ticker": "IONQ",
+   "name": "IonQ",
+   "color": "#0077B6"
+  }
+ ],
+ "months": [
+  {
+   "month": "2026-09",
+   "total": 76,
+   "counts": {
+    "IONQ": 76
+   }
+  }
+ ]
+}
