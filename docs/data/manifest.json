@@ -1,144 +1,159 @@
 {
- "updated": "2026-09-25T09:59:46Z",
+ "updated": "2026-09-25T13:27:22Z",
  "companies": [
   {
    "ticker": "IONQ",
    "name": "IonQ",
    "color": "#0077B6"
+  },
+  {
+   "ticker": "JMIA",
+   "name": "Jumia",
+   "color": "#C45A00"
+  },
+  {
+   "ticker": "NBIS",
+   "name": "Nebius",
+   "color": "#5B3FD9"
+  },
+  {
+   "ticker": "6965",
+   "name": "浜松ホトニクス",
+   "color": "#004A99"
   }
  ],
  "months": [
   {
    "month": "2026-09",
-   "total": 445,
+   "total": 279,
    "counts": {
-    "IONQ": 445
+    "IONQ": 279
    }
   },
   {
    "month": "2026-08",
-   "total": 167,
+   "total": 107,
    "counts": {
-    "IONQ": 167
+    "IONQ": 107
    }
   },
   {
    "month": "2026-07",
-   "total": 211,
+   "total": 164,
    "counts": {
-    "IONQ": 211
+    "IONQ": 164
    }
   },
   {
    "month": "2026-06",
-   "total": 185,
+   "total": 152,
    "counts": {
-    "IONQ": 185
+    "IONQ": 152
    }
   },
   {
    "month": "2026-05",
-   "total": 260,
+   "total": 189,
    "counts": {
-    "IONQ": 260
+    "IONQ": 189
    }
   },
   {
    "month": "2026-04",
-   "total": 218,
+   "total": 152,
    "counts": {
-    "IONQ": 218
+    "IONQ": 152
    }
   },
   {
    "month": "2026-03",
-   "total": 94,
-   "counts": {
-    "IONQ": 94
-   }
-  },
-  {
-   "month": "2026-02",
-   "total": 129,
-   "counts": {
-    "IONQ": 129
-   }
-  },
-  {
-   "month": "2026-01",
-   "total": 162,
-   "counts": {
-    "IONQ": 162
-   }
-  },
-  {
-   "month": "2025-12",
-   "total": 93,
-   "counts": {
-    "IONQ": 93
-   }
-  },
-  {
-   "month": "2025-11",
-   "total": 78,
-   "counts": {
-    "IONQ": 78
-   }
-  },
-  {
-   "month": "2025-10",
-   "total": 110,
-   "counts": {
-    "IONQ": 110
-   }
-  },
-  {
-   "month": "2025-09",
    "total": 69,
    "counts": {
     "IONQ": 69
    }
   },
   {
-   "month": "2025-08",
-   "total": 49,
+   "month": "2026-02",
+   "total": 83,
    "counts": {
-    "IONQ": 49
+    "IONQ": 83
+   }
+  },
+  {
+   "month": "2026-01",
+   "total": 116,
+   "counts": {
+    "IONQ": 116
+   }
+  },
+  {
+   "month": "2025-12",
+   "total": 85,
+   "counts": {
+    "IONQ": 85
+   }
+  },
+  {
+   "month": "2025-11",
+   "total": 56,
+   "counts": {
+    "IONQ": 56
+   }
+  },
+  {
+   "month": "2025-10",
+   "total": 92,
+   "counts": {
+    "IONQ": 92
+   }
+  },
+  {
+   "month": "2025-09",
+   "total": 57,
+   "counts": {
+    "IONQ": 57
+   }
+  },
+  {
+   "month": "2025-08",
+   "total": 41,
+   "counts": {
+    "IONQ": 41
    }
   },
   {
    "month": "2025-07",
-   "total": 36,
+   "total": 26,
    "counts": {
-    "IONQ": 36
+    "IONQ": 26
    }
   },
   {
    "month": "2025-06",
-   "total": 51,
+   "total": 26,
    "counts": {
-    "IONQ": 51
+    "IONQ": 26
    }
   },
   {
    "month": "2025-05",
-   "total": 39,
+   "total": 31,
    "counts": {
-    "IONQ": 39
+    "IONQ": 31
    }
   },
   {
    "month": "2025-04",
-   "total": 27,
+   "total": 17,
    "counts": {
-    "IONQ": 27
+    "IONQ": 17
    }
   },
   {
    "month": "2025-03",
-   "total": 18,
+   "total": 13,
    "counts": {
-    "IONQ": 18
+    "IONQ": 13
    }
   },
   {
@@ -150,30 +165,30 @@
   },
   {
    "month": "2025-01",
-   "total": 36,
+   "total": 28,
    "counts": {
-    "IONQ": 36
+    "IONQ": 28
    }
   },
   {
    "month": "2024-12",
-   "total": 17,
+   "total": 16,
    "counts": {
-    "IONQ": 17
+    "IONQ": 16
    }
   },
   {
    "month": "2024-11",
-   "total": 19,
+   "total": 16,
    "counts": {
-    "IONQ": 19
+    "IONQ": 16
    }
   },
   {
    "month": "2024-10",
-   "total": 6,
+   "total": 5,
    "counts": {
-    "IONQ": 6
+    "IONQ": 5
    }
   },
   {
