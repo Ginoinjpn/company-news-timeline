@@ -1,0 +1,33 @@
+name: ニュース収集（1日6回）
+
+on:
+  schedule:
+    - cron: '0 21,1,5,9,13,17 * * *' # 日本時間 6/10/14/18/22/2 時
+  workflow_dispatch:
+
+concurrency:
+  group: news-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - name: ニュースの取得と要約
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: python -m collector.main
+      - name: データのコミットと push
+        if: always()
+        run: bash scripts/commit-data.sh "Update news data"

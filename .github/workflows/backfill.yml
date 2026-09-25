@@ -1,0 +1,46 @@
+name: 過去分の取り込み
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: '対象のティッカー（空欄なら全社）'
+        required: false
+        default: ''
+      since:
+        description: '開始日 YYYY-MM-DD（空欄なら2年前）'
+        required: false
+        default: ''
+
+concurrency:
+  group: news-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - name: 過去分の取り込み
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          TICKER: ${{ inputs.ticker }}
+          SINCE: ${{ inputs.since }}
+        run: |
+          args=(--backfill --checkpoint)
+          if [ -n "$TICKER" ]; then args+=(--ticker "$TICKER"); fi
+          if [ -n "$SINCE" ]; then args+=(--since "$SINCE"); fi
+          python -m collector.main "${args[@]}"
+      - name: 残りのデータのコミットと push
+        if: always()
+        run: bash scripts/commit-data.sh "Backfill news data"

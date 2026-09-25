@@ -6,4 +6,16 @@
 - 取得元: Google News（英・日）、Yahoo Finance、Seeking Alpha、Nasdaq.com、各社の公式ニュース、SEC EDGAR、業界専門メディア
 - 要約: Gemini API（見出しと RSS の概要から作成。記事本文は読んでいません）
 
+## 設定
+
+リポジトリの Secrets（Settings → Secrets and variables → Actions）に次の2つを登録します。
+
+| 名前 | 内容 |
+|---|---|
+| `GEMINI_API_KEY` | Gemini API のキー |
+| `SEC_USER_AGENT` | SEC EDGAR に送る連絡先（例: `company-news-timeline you@example.com`）。SEC は連絡先のメールアドレスを必須としています。未設定なら SEC の書類は取得しません |
+
+- 会社を追加するときは `companies.py` に1件足し、Actions の「過去分の取り込み」を、そのティッカーを指定して実行します。
+- 公開ページは GitHub Pages（main ブランチの `/docs`）で配信しています。
+
 記事の著作権は各配信元にあります。このサイトは見出し・リンク・独自の要約のみを掲載しています。
