@@ -137,9 +137,10 @@
   },
   {
    "month": "2025-07",
-   "total": 26,
+   "total": 35,
    "counts": {
-    "IONQ": 26
+    "IONQ": 26,
+    "JMIA": 9
    }
   },
   {
