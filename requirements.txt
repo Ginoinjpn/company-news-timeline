@@ -1,0 +1,4 @@
+requests==2.34.2
+feedparser==6.0.14
+google-genai==2.23.0
+pydantic==2.13.5
