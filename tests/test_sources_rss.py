@@ -66,8 +66,9 @@ def test_recent_feed_specs_cover_all_sources():
         "industry_feeds": ["https://thequantuminsider.com/feed/"], "industry_keywords": ["IonQ"],
     }
     urls = [u for u, _ in sources.recent_feed_specs(company)]
-    assert len(urls) == 8
-    assert any("seekingalpha.com/api/sa/combined/IONQ.xml" in u for u in urls)
+    assert len(urls) == 7
+    # Seeking Alpha は本文を取得できない（常に 403）ため使わない
+    assert not any("seekingalpha.com" in u for u in urls)
     assert any("nasdaq.com/feed/rssoutbound?symbol=IONQ" in u for u in urls)
     assert any("feeds.finance.yahoo.com" in u for u in urls)
     official = dict(sources.recent_feed_specs(company))["https://ionq.com/news/rss.xml"]

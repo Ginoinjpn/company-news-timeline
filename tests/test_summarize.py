@@ -124,3 +124,17 @@ def test_find_same_events_returns_label_mapping():
 def test_find_same_events_raises_bad_response_on_garbage():
     with pytest.raises(summarize.BadResponse):
         summarize.find_same_events(FakeClient(["nope"]), COMPANY, [], [art(1, "y")], sleep=lambda s: None)
+
+
+def test_prompt_includes_body_and_asks_for_longer_summary():
+    c = {**cand(0), "body": "本文の内容がここに入ります。"}
+    prompt = summarize.build_prompt(COMPANY, [c, cand(1)])
+    assert "本文: 本文の内容がここに入ります。" in prompt
+    assert "200〜350字" in prompt
+
+
+def test_apply_judgements_records_summary_basis():
+    items = [{**cand(0), "body": "x" * 500}, cand(1, origin="sec", form="8-K")]
+    accepted, _, _ = summarize.apply_judgements(items, [j(0), j(1)])
+    assert [a["basis"] for a in accepted] == ["body", "headline"]
+    assert "body" not in accepted[0]

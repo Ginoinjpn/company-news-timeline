@@ -76,7 +76,20 @@ h1 { margin: 0; font-size: 1.1rem; }
 .title { margin: 6px 0 4px; font-size: 1rem; line-height: 1.45; }
 .title a { color: var(--text); text-decoration: none; }
 .title a:hover, .title a:focus-visible { color: var(--accent); text-decoration: underline; }
-.summary { margin: 0; font-size: .9rem; }
+.summary { display: none; margin: 4px 0 0; font-size: .9rem; line-height: 1.75; }
+.card.open .summary { display: block; }
+.toggle-summary {
+  margin: 2px 0 0;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: .78rem;
+  cursor: pointer;
+}
+.toggle-summary:hover, .toggle-summary:focus-visible { color: var(--accent); border-color: var(--accent); }
 .orig { margin: 6px 0 0; font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
 .also { margin: 6px 0 0; font-size: .78rem; color: var(--muted); }
 .also a { color: var(--accent); text-decoration: none; }

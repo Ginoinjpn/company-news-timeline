@@ -5,7 +5,7 @@ from google.genai import errors, types
 from pydantic import BaseModel, ValidationError
 
 MODEL = "gemini-3.5-flash-lite"
-BATCH_SIZE = 40
+BATCH_SIZE = 20  # 本文つきで1回に渡す量と、要約が長くなった分の出力量を抑える
 CATEGORIES = ("決算・業績", "提携・契約", "製品・技術", "買収・資金調達", "経営・人事", "株価・市場", "その他")
 RETRY_CODES = (429, 500, 503)
 MAX_RETRIES = 3
@@ -23,16 +23,24 @@ class Judgement(BaseModel):
     category: str
 
 
+def _item_text(i: int, c: dict) -> str:
+    text = f"{i}. [{c['source']}] {c['title']}\n   概要: {c['snippet'] or 'なし'}"
+    if c.get("body"):
+        text += f"\n   本文: {c['body']}"
+    return text
+
+
 def build_prompt(company: dict, items: list[dict]) -> str:
-    lines = "\n".join(
-        f"{i}. [{c['source']}] {c['title']}\n   概要: {c['snippet'] or 'なし'}" for i, c in enumerate(items)
-    )
-    return f"""あなたは米国株ニュースの編集者です。以下は「{company['name']}」（ティッカー: {company['ticker']}、{company['description']}）に関係する可能性があるニュースの見出しと概要です。
+    lines = "\n\n".join(_item_text(i, c) for i, c in enumerate(items))
+    return f"""あなたは株式ニュースの編集者です。以下は「{company['name']}」（ティッカー: {company['ticker']}、{company['description']}）に関係する可能性があるニュースです。
 
 各記事について次の項目を作ってください。
 - relevant: この会社が記事の主題か、内容のある形で取り上げられていれば true。同名の別物、銘柄の一覧に名前が並ぶだけの記事、この会社に触れない市場全体のまとめは false。
 - title_ja: 見出しの自然な日本語訳。日本語の見出しはそのまま。
-- summary: 見出しと概要から分かる事実だけで書いた日本語の要約（1〜2文）。本文に書かれていそうな内容を推測で足さないこと。SEC の提出書類は、書類の種類と Items 番号から分かる内容（例: 2.02 は決算発表、5.02 は役員の異動）を説明すること。
+- summary: 日本語の要約。
+  - 本文がある記事は、本文をもとに 200〜350字程度（3〜5文）で、何が起きたか、具体的な数字、関係する企業や人物、記事が伝える背景や会社への影響をまとめること。
+  - 本文がない記事は、見出しと概要から分かる事実だけで1〜2文にすること。SEC の提出書類は、書類の種類と Items 番号から分かる内容（例: 2.02 は決算発表、5.02 は役員の異動）を説明すること。
+  - どちらの場合も、記事に書かれていないことを推測で足さないこと。
 - category: 次のうち1つ: {' / '.join(CATEGORIES)}
 
 {lines}
@@ -120,5 +128,6 @@ def apply_judgements(items: list[dict], judgements: list[Judgement]):
             "title_ja": j.title_ja.strip() or c["title"], "summary": j.summary.strip(), "category": category,
             "url": c["url"], "source": c["source"], "origin": c["origin"], "lang": c["lang"],
             "published": c["published"], "fetched": c["fetched"],
+            "basis": "body" if c.get("body") else "headline",
         })
     return accepted, rejected, leftover

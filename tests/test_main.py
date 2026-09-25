@@ -255,3 +255,88 @@ def test_run_regroup_collapses_existing_duplicates(tmp_path, monkeypatch):
     loaded = Store.load(tmp_path)
     assert set(loaded.articles) == {"a"}
     assert {r["url"] for r in loaded.articles["a"]["related"]} == {"https://x/b", "https://x/c"}
+
+
+def fake_bodies(mapping):
+    return lambda urls: {u: mapping.get(u, (u, None)) for u in urls}
+
+
+def test_attach_bodies_drops_headline_only_news_and_keeps_primary_sources():
+    store = Store()
+    items = [cand("a", "https://g/a"), cand("b", "https://g/b"), cand("o", "https://ionq.com/o", origin="official"),
+             {**cand("s", "https://sec/s", origin="sec"), "form": "8-K"}] + [cand(f"x{i}", f"https://g/x{i}") for i in range(3)]
+    bodies = fake_bodies({"https://g/a": ("https://real/a", "本文A"), "https://ionq.com/o": ("https://ionq.com/o", "公式本文")})
+    kept = main.attach_bodies(store, items, bodies, log=lambda m: None)
+    by_id = {c["id"]: c for c in kept}
+    assert set(by_id) == {"a", "o", "s"}
+    assert by_id["a"]["url"] == "https://real/a" and by_id["a"]["body"] == "本文A"
+    assert by_id["o"]["body"] == "公式本文" and "body" not in by_id["s"]
+    assert store.is_rejected({"url": "https://g/b", "companies": ["IONQ"]})
+
+
+def test_attach_bodies_postpones_everything_when_no_body_can_be_fetched():
+    store = Store()
+    items = [cand(f"x{i}", f"https://g/x{i}") for i in range(6)] + [cand("o", "https://ionq.com/o", origin="official")]
+    logs = []
+    kept = main.attach_bodies(store, items, fake_bodies({}), log=logs.append)
+    assert [c["id"] for c in kept] == ["o"]
+    assert not store.is_rejected({"url": "https://g/x0", "companies": ["IONQ"]})
+    assert logs
+
+
+def test_process_passes_bodies_to_judge_and_saves_basis():
+    store = Store()
+    seen = []
+
+    def judge(company, batch):
+        seen.extend(c.get("body") for c in batch)
+        return all_relevant(company, batch)
+
+    main.process(store, [cand("a", "https://g/a"), cand("b", "https://g/b")], judge, lambda: None, BY_TICKER,
+                 log=lambda m: None, pause=lambda s: None, body_fn=fake_bodies({"https://g/a": ("https://real/a", "本文")}))
+    assert seen == ["本文"]
+    assert store.articles["a"]["basis"] == "body" and store.articles["a"]["url"] == "https://real/a"
+    assert "b" not in store.articles
+
+
+def test_run_resummarize_rewrites_deletes_and_promotes_readable_related(tmp_path):
+    store = Store()
+    readable = stored("r", "2026-09-20T00:00:00Z")
+    promoted = {**stored("p", "2026-09-20T01:00:00Z"), "related": [{"source": "Yahoo", "url": "https://yahoo/p", "title": "y"}]}
+    dropped = {**stored("d", "2026-09-20T02:00:00Z"), "related": [{"source": "SA", "url": "https://sa/d", "title": "s"}]}
+    filing = {**stored("s", "2026-09-20T03:00:00Z", origin="sec")}
+    for a in (readable, promoted, dropped, filing):
+        store.add(a)
+    store.add({**stored("done", "2026-09-20T04:00:00Z"), "basis": "body"})
+    for a in [stored(f"ok{i}", f"2026-09-21T0{i}:00:00Z") for i in range(3)]:
+        store.add(a)
+    store.save(tmp_path, [IONQ], NOW)
+    bodies = fake_bodies({"https://x/r": ("https://x/r", "本文R"), "https://yahoo/p": ("https://yahoo/p", "本文P"),
+                          **{f"https://x/ok{i}": (f"https://x/ok{i}", "本文") for i in range(3)}})
+    calls = []
+
+    def judge(company, batch):
+        calls.append([c["id"] for c in batch])
+        return [Judgement(index=i, relevant=True, title_ja="t", summary=f"長い要約 {c['id']}", category="その他") for i, c in enumerate(batch)]
+
+    main.run_resummarize([IONQ], judge, NOW, tmp_path, body_fn=bodies, log=lambda m: None, pause=lambda s: None)
+    loaded = Store.load(tmp_path)
+    assert "d" not in loaded.articles and "done" in loaded.articles and "s" in loaded.articles
+    assert loaded.articles["r"]["summary"] == "長い要約 r" and loaded.articles["r"]["basis"] == "body"
+    assert loaded.articles["r"]["title_ja"] == "見出し r"
+    p = loaded.articles["p"]
+    assert p["url"] == "https://yahoo/p" and p["source"] == "Yahoo" and p["summary"] == "長い要約 p"
+    assert {r["url"] for r in p["related"]} == {"https://x/p"}
+    assert loaded.articles["s"]["summary"] == "s"
+    assert loaded.is_rejected({"url": "https://sa/d", "companies": ["IONQ"]})
+    assert all("done" not in batch for batch in calls)
+
+
+def test_run_resummarize_stops_without_deleting_when_nothing_is_readable(tmp_path):
+    store = Store()
+    for i in range(12):
+        store.add(stored(f"a{i}", f"2026-09-20T{i:02d}:00:00Z"))
+    store.save(tmp_path, [IONQ], NOW)
+    with pytest.raises(RuntimeError):
+        main.run_resummarize([IONQ], all_relevant, NOW, tmp_path, body_fn=fake_bodies({}), log=lambda m: None, pause=lambda s: None)
+    assert len(Store.load(tmp_path).articles) == 12

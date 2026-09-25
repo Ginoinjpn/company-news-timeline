@@ -9,7 +9,7 @@ from collector.text import article_id, iso_now, parse_iso
 ORIGIN_PRIORITY = {"official": 0, "sec": 1, "other": 2}
 PUBLIC_FIELDS = (
     "id", "companies", "title", "title_ja", "summary", "category",
-    "url", "source", "origin", "lang", "published", "fetched", "related",
+    "url", "source", "origin", "lang", "published", "fetched", "related", "basis",
 )
 _MONTH_FILE_RE = re.compile(r"^\d{4}-\d{2}\.json$")
 SAME_STORY_DAYS = 3
@@ -80,7 +80,7 @@ class Store:
 
     def find(self, candidate: dict) -> dict | None:
         by_url = self._url_index.get(candidate["url"])
-        if by_url:
+        if by_url and by_url in self.articles:
             return self.articles[by_url]
         existing = self.articles.get(candidate["id"])
         if existing and not same_story(existing, candidate):
@@ -139,6 +139,17 @@ class Store:
                  if ticker in a["companies"] and a["id"] not in exclude and start <= _timestamp(a) <= end]
         found.sort(key=lambda a: (_timestamp(a), a["id"]), reverse=True)
         return found[:limit]
+
+    def remove(self, article: dict) -> None:
+        """記事を消し、同じ URL がまた取り込まれないよう除外として記録する。"""
+        self.articles.pop(article["id"], None)
+        for url in [article["url"]] + [r["url"] for r in article.get("related", [])]:
+            for ticker in article["companies"]:
+                self.reject(url, ticker)
+
+    def reindex(self, article: dict) -> None:
+        for url in [article["url"]] + [r["url"] for r in article.get("related", [])]:
+            self._url_index[url] = article["id"]
 
     def reject(self, url: str, ticker: str) -> None:
         self._rejected.add(_rejection_key(ticker, url))

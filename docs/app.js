@@ -3,7 +3,30 @@
 const MARKET = "株価・市場";
 const PRELOAD_PX = 800;
 const RELATED_SHOWN = 5;
-const state = { manifest: null, loaded: new Map(), tab: "ALL", q: "", market: false };
+const EXPAND_KEY = "company-news-timeline:expand-summaries";
+const state = { manifest: null, loaded: new Map(), tab: "ALL", q: "", market: false, expandAll: loadExpandAll() };
+
+function loadExpandAll() {
+  try {
+    return localStorage.getItem(EXPAND_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function saveExpandAll() {
+  try {
+    localStorage.setItem(EXPAND_KEY, state.expandAll ? "1" : "0");
+  } catch {
+    // 保存できない環境では、このページを開いている間だけ有効
+  }
+}
+
+function setOpen(li, button, open) {
+  li.classList.toggle("open", open);
+  button.setAttribute("aria-expanded", String(open));
+  button.textContent = open ? "要約を閉じる ▲" : "要約 ▼";
+}
 const $ = (id) => document.getElementById(id);
 
 // 既読は開いた URL で覚える（記事がまとめ直されて ID が変わっても既読のまま残るように）
@@ -145,7 +168,16 @@ function card(article, date) {
   const heading = el("h3", "title");
   heading.append(externalLink(article.title_ja || article.title, article.url, li));
   li.append(heading);
-  if (article.summary) li.append(el("p", "summary", article.summary));
+  if (article.summary) {
+    const button = el("button", "toggle-summary");
+    button.type = "button";
+    const summary = el("p", "summary", article.summary);
+    summary.id = `summary-${article.id}`;
+    button.setAttribute("aria-controls", summary.id);
+    setOpen(li, button, state.expandAll);
+    button.addEventListener("click", () => setOpen(li, button, !li.classList.contains("open")));
+    li.append(button, summary);
+  }
   if (article.title_ja && article.title_ja !== article.title) li.append(el("p", "orig", article.title));
 
   const related = article.related || [];
@@ -279,6 +311,12 @@ async function init() {
     state.market = event.target.checked;
     render();
     fill();
+  });
+  $("expand").checked = state.expandAll;
+  $("expand").addEventListener("change", (event) => {
+    state.expandAll = event.target.checked;
+    saveExpandAll();
+    render();
   });
   new IntersectionObserver((entries) => {
     if (entries.some((e) => e.isIntersecting)) fill();

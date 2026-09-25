@@ -84,7 +84,6 @@ def recent_feed_specs(company: dict) -> list[tuple[str, dict]]:
         specs.append((google_news_url(query, "ja", when="1d"), {"source_name": "Google News", "lang": "ja", "origin": "other"}))
     if company.get("us_listed", True):
         specs.append((f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US", {"source_name": "Yahoo Finance", **other}))
-        specs.append((f"https://seekingalpha.com/api/sa/combined/{ticker}.xml", {"source_name": "Seeking Alpha", **other}))
         specs.append((f"https://www.nasdaq.com/feed/rssoutbound?symbol={ticker}", {"source_name": "Nasdaq", **other}))
     if company.get("official_rss"):
         specs.append((company["official_rss"], {
