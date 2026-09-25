@@ -241,9 +241,10 @@
   },
   {
    "month": "2024-09",
-   "total": 2,
+   "total": 6,
    "counts": {
-    "IONQ": 2
+    "IONQ": 2,
+    "NBIS": 4
    }
   }
  ]
