@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>企業ニュース・タイムライン</title>
+<meta name="description" content="米国上場企業のニュースを日本語の要約つきで時系列に表示します">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="bar">
+    <h1>企業ニュース・タイムライン</h1>
+    <p id="updated" class="updated"></p>
+  </div>
+  <nav id="tabs" class="tabs" aria-label="会社"></nav>
+  <div class="controls">
+    <input id="q" type="search" placeholder="キーワードで検索" aria-label="キーワードで検索">
+    <label class="toggle"><input id="market" type="checkbox"> 株価・市場の記事も表示</label>
+  </div>
+</header>
+<main id="timeline" class="timeline"></main>
+<div id="sentinel" class="sentinel" aria-hidden="true"></div>
+<p id="status" class="status" aria-live="polite"></p>
+<script src="app.js"></script>
+</body>
+</html>
