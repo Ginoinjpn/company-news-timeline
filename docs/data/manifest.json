@@ -193,8 +193,9 @@
   },
   {
    "month": "2024-12",
-   "total": 16,
+   "total": 28,
    "counts": {
+    "JMIA": 12,
     "IONQ": 16
    }
   },
