@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-27T14:38:59Z",
+ "updated": "2026-09-27T20:00:11Z",
  "companies": [
   {
    "ticker": "IONQ",
@@ -25,11 +25,11 @@
  "months": [
   {
    "month": "2026-09",
-   "total": 495,
+   "total": 498,
    "counts": {
-    "IONQ": 237,
+    "IONQ": 238,
+    "NBIS": 245,
     "6965": 10,
-    "NBIS": 243,
     "JMIA": 5
    }
   },
